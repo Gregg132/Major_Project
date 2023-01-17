@@ -28,14 +28,14 @@ namespace Major_Project
         public Color Colour { get; private set; }
         public Rectangle Hitbox { get; private set; }
 
-        public bool Update(List<Rectangles> floor)
+        public bool Update(List<Rectangle> floor)
         {
             Position += new Vector2(0, 1);
             foreach (var item in floor)
             {
-                if (Hitbox.Intersects(item.Piece))
+                if (Hitbox.Intersects(item))
                 {
-                    Position -= new Vector2(0, 5);
+                    Position -= new Vector2(0, 1);
                     Colour = Color.Red;
                     X = Position.X;
                     Y = Position.Y;

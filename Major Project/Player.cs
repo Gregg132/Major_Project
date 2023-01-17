@@ -32,32 +32,33 @@ namespace Major_Project
             Size = 15;
         }
 
-        public void Update(bool turn, List<Rectangles> floor)
+        public void Update(bool turn, List<Rectangle> floor)
         {
             Point cache = new Point(0,0);
             int collisions = 0;
+            Vector2 gravitysize = new Vector2(0, 2);
             bool gravity = true;
             if (gravity)
             {
-                Position += new Vector2(0, 1);
+                Position += gravitysize;
                 hitbox = new Rectangle(new Point((int)Position.X, (int)Position.Y), new Point(Size, Size));
             }
             foreach (var item in floor)
             {
                 //gravity = true;
-                while (hitbox.Intersects(item.Piece))// && !(Math.Abs(item.Piece.Location.Y-cache.Y)<2))
+                while (hitbox.Intersects(item))// && !(Math.Abs(item.Piece.Location.Y-cache.Y)<2))
                 {
                     Colour = Color.Red;
                     gravity = false;
                     collisions++;
-                    Position -= new Vector2(0, 1);
+                    Position -= gravitysize;
                     hitbox = new Rectangle(new Point((int)Position.X, (int)Position.Y), new Point(Size, Size));
                 }
 
                 {
                     Colour = Color.Black;
                 }
-                cache = item.Piece.Location;
+                cache = item.Location;
             }
 
 

@@ -15,33 +15,41 @@ namespace Major_Project
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
         private Texture2D line;
-        public Vector2[] map;
-        private int smoothness = 5;
-        private float lastangle;
-        private int lowest;
-        public List<Rectangles> floorpoints = new List<Rectangles>();
-        public List<Rectangles> floor = new List<Rectangles>();
+        public List<Rectangle> FloorRectangles = new List<Rectangle>();
+        public List<Vector2> TerrainPoints= new List<Vector2>();
         public List<Projectile> projectiles = new List<Projectile>();
         public List<Player> Players = new List<Player>();
 
         public TankGame()
         {
             _graphics = new GraphicsDeviceManager(this);
+            _graphics.HardwareModeSwitch = false;
+            //_graphics.IsFullScreen = true;
+            _graphics.ApplyChanges();
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
         }
 
+        public float Interpolate(float a, float b, float v) {
+            return (b - a) * ((v * (v * 6f - 15f) + 10f) * v * v * v) + a;
+        }
+
+        public float Lerp(float a, float b, float v) => a * (1f - v) + b * v;
+
+        public Vector2 InterpolateY(Vector2 a, Vector2 b, float v)
+        {
+            return new Vector2((int)Math.Round(Lerp(a.X,b.X,v),0), Interpolate(a.Y,b.Y,v));
+        }
+        
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
 
             base.Initialize();
-            map = new Vector2[Window.ClientBounds.Width];
             line = new Texture2D(GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             line.SetData(new[] {Color.White});
-            Genmap(300, 1, map, Color.Black);
-            GenTerrain(Color.Black, 50);
-            floor.Add(new Rectangles(new Rectangle(new Point(0, lowest), new Point(GraphicsDevice.Viewport.Width, 500)), 0f));
+            CreateFloorPoints(Window.ClientBounds.Height-300,20,Window.ClientBounds.Width);
+            CreateFloorRectangles();
             Players.Add(new Player(true, 500, new Vector2(250, 250)));
         }
 
@@ -56,7 +64,9 @@ namespace Major_Project
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
-
+            
+            // TODO: Add your update logic here
+            
             var mouseState = Mouse.GetState();
             if (mouseState.LeftButton == ButtonState.Pressed)
             {
@@ -65,13 +75,13 @@ namespace Major_Project
             List<Projectile> temp = new List<Projectile>(projectiles);
             foreach (var item in temp)
             {
-                item.Update(floor);
+                item.Update(FloorRectangles);
             }
             foreach (var item in Players)
             {
-                item.Update(true,floor);
+                item.Update(true,FloorRectangles);
             }
-            // TODO: Add your update logic here
+            
 
             base.Update(gameTime);
         }
@@ -94,98 +104,57 @@ namespace Major_Project
             {
                 _spriteBatch.Draw(line, new Rectangle(new Point((int)item.X,(int)item.Y), new Point(5,5)),null,item.Colour,0,new Vector2(0,0), SpriteEffects.None, 0);
             }
-            foreach (var item in floor)
+            for (int i = 0; i < FloorRectangles.Count; i++)
             {
-                //_spriteBatch.Draw(line, item.Piece, null, colour, item.Angle, new Vector2(0, 0), SpriteEffects.None, 0);  //no hitboxes
-                _spriteBatch.Draw(line, item.Piece, null, colour, 0, new Vector2(0, 0), SpriteEffects.None, 0);           //hitboxes
+                _spriteBatch.Draw(line,FloorRectangles[i],null,Color.Black);
             }
 
             _spriteBatch.End();
             base.Draw(gameTime);
         }
-        
-        public void CalcAngle(Rectangle rect1,Rectangle rect2, Color colour, int thickness)
-        {
-            float horiz = rect2.Location.X - rect1.Location.X;
-            float vert = rect2.Location.Y - rect1.Location.Y;
-            double dist = 1+Math.Sqrt(Math.Pow(horiz, 2) + Math.Pow(Math.Abs(vert), 2)) + 0.05;
-            float angle = 0;
 
-            if (vert > 0)
-            {
-                angle = (float)(Math.Atan(Math.Abs(vert) / horiz));
-            }
-            else if (vert < 0)
-            {
-                angle = (float)(2 * Math.PI) - (float)(Math.Atan(Math.Abs(vert) / horiz));
-            }
-            else
-            {
-                angle = 0;
-            }
-            if (angle > lastangle && lastangle != 0)
-            {
-                lastangle = angle;
-                //DrawLine(new Vector2(rect1.Location.X,rect1.Location.Y) - new Vector2(thickness, 0), new Vector2(rect1.Location.X,rect1.Location.Y) + new Vector2(thickness, 0), colour, 500);
-                floor.Add(new Rectangles(new Rectangle(new Point(rect1.Location.X - thickness, rect1.Location.Y), new Point((int)Math.Round(dist),thickness)),angle));
-            }
-            else if (lastangle > angle && lastangle != 0)
-            {
-                lastangle = angle;
-                //DrawLine(new Vector2(rect1.Location.X,rect1.Location.Y) - new Vector2(2, 0), new Vector2(rect1.Location.X,rect1.Location.Y) + new Vector2(2, 0), colour, 500);
-                floor.Add(new Rectangles(new Rectangle(new Point(rect1.Location.X - thickness, rect1.Location.Y), new Point((int)Math.Round(dist), thickness)), angle));
-            }
-            else if (angle == 0 && lastangle != 0)
-            {
-                lastangle = angle;
-                //DrawLine(new Vector2(rect1.Location.X,rect1.Location.Y) - new Vector2(thickness, 0), new Vector2(rect1.Location.X,rect1.Location.Y) + new Vector2(thickness, 0), colour, 500);
-                floor.Add(new Rectangles(new Rectangle(new Point(rect1.Location.X - thickness, rect1.Location.Y), new Point((int)Math.Round(dist), thickness)), angle));
-            }
-            else if (lastangle == 0 && angle > 0)
-            {
-                lastangle = angle;
-                //DrawLine(new Vector2(rect1.Location.X,rect1.Location.Y) - new Vector2(thickness, 0), new Vector2(rect1.Location.X,rect1.Location.Y) + new Vector2(thickness, 0), colour, 500);
-                floor.Add(new Rectangles(new Rectangle(new Point(rect1.Location.X - thickness, rect1.Location.Y), new Point((int)Math.Round(dist), thickness)), angle));
-            }
-            lastangle = angle;
-            floor.Add(new Rectangles(new Rectangle(new Point(rect1.Location.X - thickness, rect1.Location.Y), new Point((int)Math.Round(dist), thickness)), angle));
-        }
-        public void Genmap(int H, int E, Vector2[] map, Color colour)
+        public void CreateFloorPoints(int floorheight,int verticalextremity,int width)
         {
-            int thickness = 5;
-            int x = (E * 5);
+            float increment = width / verticalextremity;
             Random r = new Random();
-            int h = 0;
-            for (int i = 0; i < map.Length; i += smoothness)
+            for (int i = 0; i <= width; i += (int)increment)
             {
-                switch (r.Next(2))
+                TerrainPoints.Add(
+                    new Vector2(i, floorheight + r.Next(-20, 20))
+                );
+            }
+
+            for (int i = 0; i <= width/increment-1; i++)
+            {
+                for (float j = 0f; j < 1f; j+=1f/increment)
                 {
-                    case 0:
-                        h = H + r.Next(x);
-                        break;
-                    case 1:
-                        h = H - r.Next(x);
-                        break;
-                    default:
-                        break;
-                }
-                map[i] = new Vector2(i * smoothness, h);
-                if (h > lowest)
-                {
-                    lowest = h;
-                }
-                
-                if (i != 0)
-                {
-                    floorpoints.Add(new Rectangles(new Rectangle(new Point((int)map[i-smoothness].X, (int)map[i-smoothness].Y), new Point((int)Math.Round(Math.Sqrt(Math.Pow(map[i].X - map[i-smoothness].X, 2) + Math.Pow(map[i].Y - map[i-smoothness].Y, 2)), 0), thickness)),0f));
+                    TerrainPoints.Add(
+                        InterpolateY(
+                            TerrainPoints[i],
+                            TerrainPoints[i+1],
+                            j
+                        )
+                    );
                 }
             }
         }
-        public void GenTerrain(Color colour, int thickness)
+
+        public void CreateFloorRectangles()
         {
-            for (int i = 0; i < floorpoints.Count-1; i++)
+            foreach (var item in TerrainPoints)
             {
-                CalcAngle(floorpoints[i].Piece, floorpoints[i+1].Piece,colour, thickness);
+                FloorRectangles.Add
+                (
+                    new Rectangle(
+                        new Point(
+                            (int)item.X,
+                            (int)item.Y),
+                        new Point
+                        (
+                            1,
+                            Window.ClientBounds.Height)
+                        )
+                    );
             }
         }
     }
